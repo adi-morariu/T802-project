@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<configElement>
+	<elementType>local-policy</elementType>
+	<attribute>
+		<name>from-address</name>
+		<value>{{param["from_address"]}}</value>
+	</attribute>
+	<attribute>
+		<name>to-address</name>
+		<value>{{param["to_address"]}}</value>
+	</attribute>
+	<attribute>
+		<name>source-realm</name>
+		<value>{{param["source_realm"]}}</value>
+	</attribute>
+	<attribute>
+		<name>description</name>
+		<value>{{param["description"]}}</value>
+	</attribute>
+	<attribute>
+		<name>activate-time</name>
+		<value/>
+	</attribute>
+	<attribute>
+		<name>deactivate-time</name>
+		<value/>
+	</attribute>
+	<attribute>
+		<name>state</name>
+		<value>{{param["state"]}}</value>
+	</attribute>
+	<attribute>
+		<name>parallel-forking</name>
+		<value>disabled</value>
+	</attribute>
+	<attribute>
+		<name>policy-priority</name>
+		<value>{{param["policy_priority"]}}</value>
+	</attribute>
+	{% for attribute in param.policy_attributes %}
+	<subElement>
+		<subElementType>policy-attribute</subElementType>
+		<attribute>
+			<name>next-hop</name>
+			<value>{{ attribute["next_hop"] }}</value>
+		</attribute>
+		<attribute>
+			<name>realm</name>
+			<value>{{ attribute["realm"] }}</value>
+		</attribute>
+		<attribute>
+			<name>action</name>
+			<value>{{ attribute["action"] }}</value>
+		</attribute>
+		<attribute>
+			<name>terminate-recursion</name>
+			<value>{{ attribute["terminate_recursion"] }}</value>
+		</attribute>
+		<attribute>
+			<name>state</name>
+			<value>{{ attribute["state"] }}</value>
+		</attribute>
+		<attribute>
+			<name>app-protocol</name>
+			<value>{{ attribute["app_protocol"] }}</value>
+		</attribute>
+		<attribute>
+			<name>lookup</name>
+			<value>{{ attribute["lookup"] }}</value>
+		</attribute>
+	</subElement>
+	{% endfor %}	
+</configElement>

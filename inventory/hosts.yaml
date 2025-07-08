@@ -1,0 +1,161 @@
+---
+sbc-1:
+    hostname: '192.168.1.121'
+    groups:
+    - sbc-1
+    - all
+    data:
+        system_config:
+            hostname: SBC-1
+            description: Athens office SBC
+            location: Athens
+            snmp_enabled: disabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: Interface to vSwitch1
+              ip_address: 10.1.0.121
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 192.168.1.179
+              dns_domain: sbc1.local
+            - name: M01
+              description: Interface to vSwitch2
+              ip_address: 10.2.0.121
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 192.168.1.246
+              dns_domain: sbc1.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: G711_and_G729
+              allow_codecs: PCMA PCMU G729
+              add_codecs_on_egress: G729
+              order_codecs: G729 PCMA PCMU
+              packetization_time: 20
+        realm_config:
+            - identifier: Teams_Realm
+              description: Teams main connection realm
+              network_interfaces: M00:0.4
+              codec_policy: G711_and_G729
+            - identifier: Telecom_Provider_Realm
+              description: Telecom Provider Realm
+              network_interfaces: M01:0.4
+              codec_policy: G711_and_G729
+        steering_pool:
+            - ip_address: 10.1.0.131
+              start_port: 30000
+              end_port: 39999
+              realm_id: Teams_Realm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.131
+              start_port: 20000
+              end_port: 29999
+              realm_id: Telecom_Provider_Realm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: Teams_Realm
+              registrar_port: 5061
+        sip_interface:
+            - realm_id: Teams_Realm
+              state: enabled
+              description: SIP interface to Teams system
+              add_sdp_invite: invite
+              add_sdp_profiles: PCMA PCMU G729
+              sip_ports:
+                  - address: 10.1.0.131
+                    port: 5061
+                    transport_protocol: TCP
+                    allow_anonymous: agents-only
+            - realm_id: Telecom_Provider_Realm
+              state: enabled
+              description: SIP interface to Telecom system
+              add_sdp_invite: both
+              add_sdp_profiles: PCMA PCMU G729
+              sip_ports:
+                  - address: 10.2.0.131
+                    port: 5060
+                    transport_protocol: TCP
+                    allow_anonymous: agents-only
+        session_agent:
+          - hostname: teams.local
+            ip_address: 10.1.0.238
+            port: 5061
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: Teams_Realm
+            description: Session agent to Teams system
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: enabled
+          - hostname: telecom.local
+            ip_address: 10.2.0.151
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: Telecom_Provider_Realm
+            description: Session agent to Provider system
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: enabled
+        local_policy:
+            - source_realm: Teams_Realm
+              from_address: "*"
+              to_address: "*" 
+              description: Local policy from Teams to Provider
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: telecom.local
+                  realm: Telecom_Provider_Realm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+            - source_realm: Telecom_Provider_Realm
+              from_address: "*"
+              to_address: "*"
+              description: Local policy from Provider to Teams
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: sip.pstnhub.microsoft.com
+                  realm: Teams_Realm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
