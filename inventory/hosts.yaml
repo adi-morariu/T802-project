@@ -152,7 +152,7 @@ sbc-1:
               state: enabled
               policy_priority: normal
               policy_attributes:
-                - next_hop: sip.pstnhub.microsoft.com
+                - next_hop: teams.local
                   realm: Teams_Realm
                   action: none
                   terminate_recursion: enabled
