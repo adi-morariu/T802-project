@@ -3,6 +3,14 @@ sbc-1:
     hostname: '192.168.1.121'
     groups:
     - sbc-1
+    - sbc-1-to-2
+    - sbc-1-to-3
+    - sbc-1-to-4
+    - sbc-1-to-5
+    - sbc-1-to-6
+    - sbc-1-to-7
+    - sbc-1-to-8
+    - sbc-1-to-9
     - all
     data:
         system_config:
@@ -108,8 +116,8 @@ sbc-1:
                     transport_protocol: TCP
                     allow_anonymous: agents-only
         session_agent:
-          - hostname: teams.local
-            ip_address: 10.1.0.238
+          - hostname: sip.pstnhub.microsoft.com
+            ip_address: 52.114.75.24
             port: 5061
             state: enabled
             app_protocol: SIP
@@ -152,10 +160,1487 @@ sbc-1:
               state: enabled
               policy_priority: normal
               policy_attributes:
-                - next_hop: teams.local
+                - next_hop: sip.pstnhub.microsoft.com
                   realm: Teams_Realm
                   action: none
                   terminate_recursion: enabled
                   state: enabled
                   app_protocol: SIP
                   lookup: single
+sbc-2:
+    hostname: '192.168.1.122'
+    groups:
+    - sbc-2
+    - sbc-1-to-2
+    - sbc-1-to-3
+    - sbc-1-to-4
+    - sbc-1-to-5
+    - sbc-1-to-6
+    - sbc-1-to-7
+    - sbc-1-to-8
+    - sbc-1-to-9
+    - all
+    data:
+        system_config:
+            hostname: SBC-2
+            description: Romania office SBC
+            location: Bucharest
+            snmp_enabled: enabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: Link to vSwitch1
+              ip_address: 10.1.0.122
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 10.2.0.200
+              dns_domain: sbc2.local
+            - name: M01
+              description: Link to vSwitch2
+              ip_address: 10.2.0.122
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 10.2.0.200
+              dns_domain: sbc2.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: PCMA_and_G729
+              allow_codecs: PCMA G729
+              add_codecs_on_egress: G729
+              order_codecs: G729 PCMA
+              packetization_time: 20
+        realm_config:
+            - identifier: PBXRealm
+              description: Realm to local PBX
+              network_interfaces: M00:0.4
+              codec_policy: PCMA_and_G729
+            - identifier: ProviderRealm
+              description: Realm to VoIP Provider
+              network_interfaces: M01:0.4
+              codec_policy: PCMA_and_G729
+        steering_pool:
+            - ip_address: 10.1.0.132
+              start_port: 6000
+              end_port: 10999
+              realm_id: PBXRealm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.132
+              start_port: 6000
+              end_port: 10999
+              realm_id: ProviderRealm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: PBXRealm
+              registrar_port: 5067
+        sip_interface:
+            - realm_id: PBXRealm
+              state: enabled
+              description: SIP interface to PBX
+              add_sdp_invite: both
+              add_sdp_profiles: PCMA G729
+              sip_ports:
+                  - address: 10.1.0.132
+                    port: 5060
+                    transport_protocol: UDP
+                    allow_anonymous: all
+            - realm_id: ProviderRealm
+              state: enabled
+              description: SIP interface to Provider
+              add_sdp_invite: both
+              add_sdp_profiles: PCMA G729
+              sip_ports:
+                  - address: 10.2.0.132
+                    port: 5060
+                    transport_protocol: UDP
+                    allow_anonymous: all
+        session_agent:
+          - hostname: pbx.local
+            ip_address: 10.1.0.215
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP+TCP
+            realm_id: PBXRealm
+            description: Session agent to pbx
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: disabled
+          - hostname: provider.local
+            ip_address: 10.2.0.233
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP
+            realm_id: ProviderRealm
+            description: Session agent to provider
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: disabled
+        local_policy:
+            - source_realm: PBXRealm
+              from_address: "*"
+              to_address: "*" 
+              description: Local policy from PBX to Provider
+              state: enabled
+              policy_priority: non-urgent
+              policy_attributes:
+                - next_hop: provider.local
+                  realm: ProviderRealm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: multi
+            - source_realm: ProviderRealm
+              from_address: "*"
+              to_address: "*"
+              description: Local policy from Provider to PBX
+              state: enabled
+              policy_priority: non-urgent
+              policy_attributes:
+                - next_hop: pbx.local
+                  realm: PBXRealm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+sbc-3:
+    hostname: '192.168.1.123'
+    groups:
+    - sbc-3
+    - sbc-1-to-3
+    - sbc-1-to-4
+    - sbc-1-to-5
+    - sbc-1-to-6
+    - sbc-1-to-7
+    - sbc-1-to-8
+    - sbc-1-to-9
+    - all
+    data:
+        system_config:
+            hostname: SBC-3
+            description: UK office VoIP connection SBC
+            location: London
+            snmp_enabled: enabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: vSwitch1 Network
+              ip_address: 10.1.0.123
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 192.168.1.150
+              dns_domain: sbc3.local
+            - name: M01
+              description: vSwitch2 Network
+              ip_address: 10.2.0.123
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 192.168.1.150
+              dns_domain: sbc3.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: PCMU_and_G722
+              allow_codecs: G722 PCMU
+              add_codecs_on_egress: G722
+              order_codecs: G722 PCMU
+              packetization_time: 40
+        realm_config:
+            - identifier: Provider1Realm
+              description: VoIP Provider1 Realm
+              network_interfaces: M00:0.4
+              codec_policy: PCMU_and_G722
+            - identifier: Provider2Realm
+              description: VoIP Provider2 Realm
+              network_interfaces: M01:0.4
+              codec_policy: PCMU_and_G722
+        steering_pool:
+            - ip_address: 10.1.0.133
+              start_port: 20000
+              end_port: 29999
+              realm_id: Provider1Realm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.133
+              start_port: 10000
+              end_port: 19999
+              realm_id: Provider2Realm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: Provider1Realm
+              registrar_port: 5061
+        sip_interface:
+            - realm_id: Provider1Realm
+              state: enabled
+              description: SIP interface to Provider1
+              add_sdp_invite: both
+              add_sdp_profiles: G722 PCMU
+              sip_ports:
+                  - address: 10.1.0.133
+                    port: 5061
+                    transport_protocol: TCP
+                    allow_anonymous: all
+            - realm_id: Provider2Realm
+              state: enabled
+              description: SIP interface to Provider2
+              add_sdp_invite: both
+              add_sdp_profiles: G722 PCMU
+              sip_ports:
+                  - address: 10.2.0.133
+                    port: 5061
+                    transport_protocol: TCP
+                    allow_anonymous: all
+        session_agent:
+          - hostname: provider1.local
+            ip_address: 10.1.0.216
+            port: 5061
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: Provider1Realm
+            description: Session agent to provider1
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: enabled
+          - hostname: provider2.local
+            ip_address: 10.2.0.235
+            port: 5061
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP+TCP
+            realm_id: Provider2Realm
+            description: Session agent to provider2
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: enabled
+        local_policy:
+            - source_realm: Provider1Realm
+              from_address: "*"
+              to_address: "*"
+              description: Local policy from Provider1 to Provider2
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: provider2.local
+                  realm: Provider2Realm
+                  action: none
+                  terminate_recursion: disabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+            - source_realm: Provider2Realm
+              from_address: "*"
+              to_address: 5501 5512 5519 5526 5529 5534 5547 5560 5562 5573
+              description: Local policy from Provider2 to Provider1
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: provider1.local
+                  realm: Provider1Realm
+                  action: none
+                  terminate_recursion: disabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+sbc-4:
+    hostname: '192.168.1.124'
+    groups:
+    - sbc-4
+    - sbc-1-to-4
+    - sbc-1-to-5
+    - sbc-1-to-6
+    - sbc-1-to-7
+    - sbc-1-to-8
+    - sbc-1-to-9
+    - all
+    data:
+        system_config:
+            hostname: SBC-4
+            description: SBC-4 test connection in Germany
+            location: Berlin
+            snmp_enabled: enabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: Interface to vSwitch1 Network
+              ip_address: 10.1.0.124
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 10.1.0.150
+              dns_domain: sbc4.local
+            - name: M01
+              description: Interface to vSwitch2 Network
+              ip_address: 10.2.0.124
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 192.168.1.100
+              dns_domain: sbc4.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: G711_G722_G729
+              allow_codecs: PCMA PCMU G722 G729
+              add_codecs_on_egress: G729
+              order_codecs: G729 PCMA PCMU G722
+              packetization_time: 20
+        realm_config:
+            - identifier: Internal_PBX_Testing_Realm
+              description: VoIP internal testing system realm
+              network_interfaces: M00:0.4
+              codec_policy: G711_G722_G729
+            - identifier: External_PBX_Testing_Realm
+              description: VoIP external testing system realm
+              network_interfaces: M01:0.4
+              codec_policy: G711_G722_G729
+        steering_pool:
+            - ip_address: 10.1.0.134
+              start_port: 40000
+              end_port: 49999
+              realm_id: Internal_PBX_Testing_Realm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.134
+              start_port: 50000
+              end_port: 59999
+              realm_id: External_PBX_Testing_Realm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: Internal_PBX_Testing_Realm
+              registrar_port: 5060
+        sip_interface:
+            - realm_id: Internal_PBX_Testing_Realm
+              state: enabled
+              description: SIP interface to Internal PBX
+              add_sdp_invite: both
+              add_sdp_profiles: PCMA PCMU G729 G722
+              sip_ports:
+                  - address: 10.1.0.134
+                    port: 5060
+                    transport_protocol: UDP
+                    allow_anonymous: all
+            - realm_id: External_PBX_Testing_Realm
+              state: enabled
+              description: SIP interface to External PBX
+              add_sdp_invite: both
+              add_sdp_profiles: PCMA PCMU G729 G722
+              sip_ports:
+                  - address: 10.2.0.134
+                    port: 5060
+                    transport_protocol: UDP
+                    allow_anonymous: all
+        session_agent:
+          - hostname: internal-pbx.local
+            ip_address: 10.1.0.172
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP
+            realm_id: Internal_PBX_Testing_Realm
+            description: Session agent to internal testing pbx
+            ping_method: OPTIONS
+            ping_interval: 60
+            refer_call_transfer: disabled
+          - hostname: external-pbx.local
+            ip_address: 10.2.0.195
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP
+            realm_id: External_PBX_Testing_Realm
+            description: Session agent to external testing pbx
+            ping_method: OPTIONS
+            ping_interval: 60
+            refer_call_transfer: disabled
+        local_policy:
+            - source_realm: Internal_PBX_Testing_Realm
+              from_address: "*"
+              to_address: 2101 2102 2121 2135 2137
+              description: Local policy from Internal to External
+              state: enabled
+              policy_priority: emergency
+              policy_attributes:
+                - next_hop: external-pbx.local
+                  realm: External_PBX_Testing_Realm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: multi
+            - source_realm: External_PBX_Testing_Realm
+              from_address: "*"
+              to_address: 2202 2203 2205 2219 2220
+              description: Local policy from External to Internal
+              state: enabled
+              policy_priority: emergency
+              policy_attributes:
+                - next_hop: internal-pbx.local
+                  realm: Internal_PBX_Testing_Realm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: multi
+sbc-5:
+    hostname: '192.168.1.125'
+    groups:
+    - sbc-5
+    - sbc-1-to-5
+    - sbc-1-to-6
+    - sbc-1-to-7
+    - sbc-1-to-8
+    - sbc-1-to-9
+    - all
+    data:
+        system_config:
+            hostname: SBC-5
+            description: Dublin office SBC
+            location: Dublin
+            snmp_enabled: enabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: Connection to vSwitch1
+              ip_address: 10.1.0.125
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 10.1.0.210
+              dns_domain: sbc5.local
+            - name: M01
+              description: Connection to vSwitch2
+              ip_address: 10.2.0.125
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 10.2.0.220
+              dns_domain: sbc5.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: PCMA_and_G729
+              allow_codecs: PCMA G729
+              add_codecs_on_egress: G729
+              order_codecs: G729 PCMA
+              packetization_time: 40
+        realm_config:
+            - identifier: Internal_realm
+              description: Realm to internal VoIP systems
+              network_interfaces: M00:0.4
+              codec_policy: PCMA_and_G729
+            - identifier: External_realm
+              description: Realm to VoIP Provider
+              network_interfaces: M01:0.4
+              codec_policy: PCMA_and_G729
+        steering_pool:
+            - ip_address: 10.1.0.135
+              start_port: 10000
+              end_port: 14999
+              realm_id: Internal_realm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.135
+              start_port: 15000
+              end_port: 19999
+              realm_id: External_realm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: Internal_realm
+              registrar_port: 5062
+        sip_interface:
+            - realm_id: Internal_realm
+              state: enabled
+              description: SIP interface to Internal system
+              add_sdp_invite: invite
+              add_sdp_profiles: G729 PCMA
+              sip_ports:
+                  - address: 10.1.0.135
+                    port: 5062
+                    transport_protocol: TCP
+                    allow_anonymous: all
+            - realm_id: External_realm
+              state: enabled
+              description: SIP interface to External system
+              add_sdp_invite: invite
+              add_sdp_profiles: G729 PCMA
+              sip_ports:
+                  - address: 10.2.0.135
+                    port: 5062
+                    transport_protocol: TCP
+                    allow_anonymous: all
+        session_agent:
+          - hostname: internal-system.local
+            ip_address: 10.1.0.187
+            port: 5062
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: Internal_realm
+            description: Session agent to internal system
+            ping_method: OPTIONS
+            ping_interval: 20
+            refer_call_transfer: disabled
+          - hostname: external-system.local
+            ip_address: 10.2.0.163
+            port: 5062
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: External_realm
+            description: Session agent to external system
+            ping_method: OPTIONS
+            ping_interval: 20
+            refer_call_transfer: disabled
+        local_policy:
+            - source_realm: Internal_realm
+              from_address: "*"
+              to_address: "*" 
+              description: Local policy from Internal to External
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: external-system.local
+                  realm: External_realm
+                  action: none
+                  terminate_recursion: disabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+            - source_realm: External_realm
+              from_address: "*"
+              to_address: "*"
+              description: Local policy from External to Internal
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: internal-system.local
+                  realm: Internal_realm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+sbc-6:
+    hostname: '192.168.1.126'
+    groups:
+    - sbc-6
+    - sbc-1-to-6
+    - sbc-1-to-7
+    - sbc-1-to-8
+    - sbc-1-to-9
+    - all
+    data:
+        system_config:
+            hostname: SBC-6
+            description: Turkey central SBC
+            location: Ankara
+            snmp_enabled: enabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: vSwitch1 Network
+              ip_address: 10.1.0.126
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 192.168.1.165
+              dns_domain: sbc6.local
+            - name: M01
+              description: vSwitch2 Network 
+              ip_address: 10.2.0.126
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 192.168.1.220
+              dns_domain: sbc6.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: Only_G722
+              allow_codecs: G722
+              add_codecs_on_egress: G722
+              order_codecs: G722
+              packetization_time: 40
+        realm_config:
+            - identifier: Teams-Realm 
+              description: Local Microsoft Teams system realm
+              network_interfaces: M00:0.4
+              codec_policy: Only_G722
+            - identifier: CUCM-Realm
+              description: Cisco Call Manager realm
+              network_interfaces: M01:0.4
+              codec_policy: Only_G722
+        steering_pool:
+            - ip_address: 10.1.0.136
+              start_port: 30000
+              end_port: 39999
+              realm_id: Teams-Realm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.136
+              start_port: 20000
+              end_port: 29999
+              realm_id: CUCM-Realm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: CUCM-Realm
+              registrar_port: 5060
+        sip_interface:
+            - realm_id: Teams-Realm
+              state: enabled
+              description: SIP interface to Microsoft Teams
+              add_sdp_invite: invite
+              add_sdp_profiles: G722
+              sip_ports:
+                  - address: 10.1.0.136
+                    port: 5061
+                    transport_protocol: TCP
+                    allow_anonymous: agents-only
+            - realm_id: CUCM-Realm
+              state: enabled
+              description: SIP interface to Cisco Call Manager
+              add_sdp_invite: invite
+              add_sdp_profiles: G722
+              sip_ports:
+                  - address: 10.2.0.136
+                    port: 5060
+                    transport_protocol: TCP
+                    allow_anonymous: all
+        session_agent:
+          - hostname: sip2.pstnhub.microsoft.com
+            ip_address: 52.114.132.46
+            port: 5061
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: Teams-Realm
+            description: Session agent to Teams system
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: enabled
+          - hostname: cucm.local
+            ip_address: 10.2.0.167
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: CUCM-Realm
+            description: Session agent to CUCM
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: enabled
+        local_policy:
+            - source_realm: Teams-Realm
+              from_address: "*"
+              to_address: "*" 
+              description: Local policy from Teams to CUCM
+              state: enabled
+              policy_priority: non-urgent
+              policy_attributes:
+                - next_hop: cucm.local
+                  realm: CUCM-Realm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: multi
+            - source_realm: CUCM-Realm
+              from_address: "*"
+              to_address: "*"
+              description: Local policy from CUCM to Teams
+              state: enabled
+              policy_priority: non-urgent
+              policy_attributes:
+                - next_hop: sip2.pstnhub.microsoft.com
+                  realm: Teams-Realm
+                  action: redirect
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+sbc-7:
+    hostname: '192.168.1.127'
+    groups:
+    - sbc-7
+    - sbc-1-to-7
+    - sbc-1-to-8
+    - sbc-1-to-9
+    - all
+    data:
+        system_config:
+            hostname: SBC-7
+            description: Spain main SBC
+            location: Madrid
+            snmp_enabled: disabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: Link to vSwitch1
+              ip_address: 10.1.0.127
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 192.168.1.111
+              dns_domain: sbc7.local
+            - name: M01
+              description: Link to vSwitch2
+              ip_address: 10.2.0.127
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 10.1.0.211
+              dns_domain: sbc7.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: Only_G729
+              allow_codecs: G729
+              add_codecs_on_egress: G729
+              order_codecs: G729
+              packetization_time: 20
+        realm_config:
+            - identifier: Call-Centre-Realm
+              description: Realm to Call Centre system
+              network_interfaces: M00:0.4
+              codec_policy: Only_G729
+            - identifier: Provider-Realm
+              description: Realm to VoIP Provider
+              network_interfaces: M01:0.4
+              codec_policy: Only_G729
+        steering_pool:
+            - ip_address: 10.1.0.137
+              start_port: 50000
+              end_port: 59999
+              realm_id: Call-Centre-Realm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.137
+              start_port: 50000
+              end_port: 59999
+              realm_id: Provider-Realm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: Call-Centre-Realm
+              registrar_port: 5061
+        sip_interface:
+            - realm_id: Call-Centre-Realm
+              state: enabled
+              description: SIP interface to Call Centre system
+              add_sdp_invite: both
+              add_sdp_profiles: G729 PCMA PCMU 
+              sip_ports:
+                  - address: 10.1.0.137
+                    port: 5061
+                    transport_protocol: TCP
+                    allow_anonymous: agents-only
+            - realm_id: Provider-Realm
+              state: enabled
+              description: SIP interface to Provider
+              add_sdp_invite: both
+              add_sdp_profiles: G729
+              sip_ports:
+                  - address: 10.2.0.137
+                    port: 5060
+                    transport_protocol: TCP
+                    allow_anonymous: all
+        session_agent:
+          - hostname: call-centre.local
+            ip_address: 10.1.0.243
+            port: 5061
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: Call-Centre-Realm
+            description: Session agent to call centre
+            ping_method: OPTIONS
+            ping_interval: 10
+            refer_call_transfer: enabled
+          - hostname: provider.local
+            ip_address: 10.2.0.199
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP
+            realm_id: Provider-Realm
+            description: Session agent to provider
+            ping_method: OPTIONS
+            ping_interval: 10
+            refer_call_transfer: enabled
+        local_policy:
+            - source_realm: Call-Centre-Realm
+              from_address: "*"
+              to_address: 3512 3533 3542 3544 3547 3558 3559 3567 3589 3596 
+              description: Local policy from Call Centre to Provider
+              state: enabled
+              policy_priority: emergency
+              policy_attributes:
+                - next_hop: provider.local
+                  realm: Provider-Realm
+                  action: redirect
+                  terminate_recursion: disabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+            - source_realm: Provider-Realm
+              from_address: "*"
+              to_address: "*"
+              description: Local policy from Provider to Call Centre
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: call-centre.local
+                  realm: Call-Centre-Realm
+                  action: none
+                  terminate_recursion: disabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+sbc-8:
+    hostname: '192.168.1.128'
+    groups:
+    - sbc-8
+    - sbc-1-to-8
+    - sbc-1-to-9
+    - all
+    data:
+        system_config:
+            hostname: SBC-8
+            description: Italy central office SBC
+            location: Rome
+            snmp_enabled: disabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: Interface to vSwitch1
+              ip_address: 10.1.0.128
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 10.2.0.85
+              dns_domain: sbc8.local
+            - name: M01
+              description: Interface to vSwitch2
+              ip_address: 10.2.0.128
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 10.2.0.85
+              dns_domain: sbc8.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: G711_and_G722
+              allow_codecs: PCMA PCMU G722
+              add_codecs_on_egress: G722
+              order_codecs: PCMA PCMU G722
+              packetization_time: 40
+        realm_config:
+            - identifier: Call_Manager_Realm
+              description: Realm to local SIP telephony system
+              network_interfaces: M00:0.4
+              codec_policy: G711_and_G722
+            - identifier: External_Realm
+              description: Realm to SIP telephony Provider
+              network_interfaces: M01:0.4
+              codec_policy: G711_and_G722
+        steering_pool:
+            - ip_address: 10.1.0.138
+              start_port: 35000
+              end_port: 39999
+              realm_id: Call_Manager_Realm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.138
+              start_port: 40000
+              end_port: 44999
+              realm_id: External_Realm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: Call_Manager_Realm
+              registrar_port: 5060
+        sip_interface:
+            - realm_id: Call_Manager_Realm
+              state: enabled
+              description: SIP interface to Call Manager
+              add_sdp_invite: both
+              add_sdp_profiles: PCMA PCMU G722
+              sip_ports:
+                  - address: 10.1.0.138
+                    port: 5060
+                    transport_protocol: UDP
+                    allow_anonymous: all
+            - realm_id: External_Realm
+              state: enabled
+              description: SIP interface to External system
+              add_sdp_invite: both
+              add_sdp_profiles: PCMA PCMU G722
+              sip_ports:
+                  - address: 10.2.0.138
+                    port: 5060
+                    transport_protocol: UDP
+                    allow_anonymous: all
+        session_agent:
+          - hostname: call-manager.local
+            ip_address: 10.1.0.159
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP+TCP
+            realm_id: Call_Manager_Realm
+            description: Session agent to call manager
+            ping_method: OPTIONS
+            ping_interval: 40
+            refer_call_transfer: enabled
+          - hostname: external-system.local
+            ip_address: 10.2.0.180
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP
+            realm_id: External_Realm
+            description: Session agent to external system
+            ping_method: OPTIONS
+            ping_interval: 40
+            refer_call_transfer: enabled
+        local_policy:
+            - source_realm: Call_Manager_Realm
+              from_address: "*"
+              to_address: "*" 
+              description: Local policy from Call Manager to External system
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: external-system.local
+                  realm: External_Realm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+            - source_realm: External_Realm
+              from_address: "*"
+              to_address: 7152 7157 7249 7252 7253 7257 7258 7268 7270 7289
+              description: Local policy from External system to Call Manager
+              state: enabled
+              policy_priority: urgent
+              policy_attributes:
+                - next_hop: call-manager.local
+                  realm: Call_Manager_Realm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: multi
+sbc-9:
+    hostname: '192.168.1.129'
+    groups:
+    - sbc-9
+    - sbc-1-to-9
+    - all
+    data:
+        system_config:
+            hostname: SBC-9
+            description: Main hub SBC in Portugal 
+            location: Lisbon
+            snmp_enabled: disabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: Connection to vSwitch1
+              ip_address: 10.1.0.129
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 192.168.1.88
+              dns_domain: sbc9.local
+            - name: M01
+              description: Connection to vSwitch2
+              ip_address: 10.2.0.129
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 10.2.0.214
+              dns_domain: sbc9.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: G729_and_G711
+              allow_codecs: G729 PCMU PCMA
+              add_codecs_on_egress: G729
+              order_codecs: G729 PCMU PCMA
+              packetization_time: 30
+        realm_config:
+            - identifier: InternalSIPRealm
+              description: Realm to local SIP system
+              network_interfaces: M00:0.4
+              codec_policy: G729_and_G711
+            - identifier: ExternalProviderRealm
+              description: Realm to external SIP Provider
+              network_interfaces: M01:0.4
+              codec_policy: G729_and_G711
+        steering_pool:
+            - ip_address: 10.1.0.139
+              start_port: 20000
+              end_port: 39999
+              realm_id: InternalSIPRealm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.139
+              start_port: 40000
+              end_port: 59999
+              realm_id: ExternalProviderRealm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: InternalSIPRealm
+              registrar_port: 5062
+        sip_interface:
+            - realm_id: InternalSIPRealm
+              state: enabled
+              description: SIP interface to Internal SIP system
+              add_sdp_invite: both
+              add_sdp_profiles: G729 PCMU PCMA  
+              sip_ports:
+                  - address: 10.1.0.139
+                    port: 5062
+                    transport_protocol: TCP
+                    allow_anonymous: all
+            - realm_id: ExternalProviderRealm
+              state: enabled
+              description: SIP interface to Provider SIP system
+              add_sdp_invite: invite
+              add_sdp_profiles: G729 PCMU PCMA
+              sip_ports:
+                  - address: 10.2.0.139
+                    port: 5060
+                    transport_protocol: TCP
+                    allow_anonymous: all
+        session_agent:
+          - hostname: internal-sip-system.local
+            ip_address: 10.1.0.171
+            port: 5062
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP+TCP
+            realm_id: InternalSIPRealm
+            description: Session agent to internal SIP system
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: disabled
+          - hostname: external-provider.local
+            ip_address: 10.2.0.169
+            port: 5060
+            state: enabled
+            app_protocol: SIP
+            transport_method: StaticTCP
+            realm_id: ExternalProviderRealm
+            description: Session agent to Provider
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: disabled
+        local_policy:
+            - source_realm: InternalSIPRealm
+              from_address: "*"
+              to_address: "*" 
+              description: Local policy from Internal SIP system to Provider
+              state: enabled
+              policy_priority: non-urgent
+              policy_attributes:
+                - next_hop: external-provider.local
+                  realm: ExternalProviderRealm
+                  action: none
+                  terminate_recursion: enabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: multi
+            - source_realm: ExternalProviderRealm
+              from_address: "*"
+              to_address: "*"
+              description: Local policy from Provider to Internal SIP system
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: internal-sip-system.local
+                  realm: InternalSIPRealm
+                  action: none
+                  terminate_recursion: disabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+sbc-10:
+    hostname: '192.168.1.130'
+    groups:
+    - sbc-10
+    - all
+    data:
+        system_config:
+            hostname: SBC-10
+            description: France SBC connection to Call Centre
+            location: Paris
+            snmp_enabled: disabled
+            default_gateway: 192.168.1.1
+        phy_interface:
+            - name: M00
+              slot: 0
+              port: 0
+              operation_type: Media
+              admin_state: enabled
+            - name: M01
+              slot: 0
+              port: 1
+              operation_type: Media
+              admin_state: enabled
+        network_interface:
+            - name: M00
+              description: vSwitch1 network connection
+              ip_address: 10.1.0.130
+              netmask: 255.255.255.0
+              gateway: 10.1.0.1
+              dns_ip_primary: 10.1.0.235
+              dns_domain: sbc10.local
+            - name: M01
+              description: vSwitch2 network connection
+              ip_address: 10.2.0.130
+              netmask: 255.255.255.0
+              gateway: 10.2.0.1
+              dns_ip_primary: 10.2.0.152
+              dns_domain: sbc10.local
+        media_profile:
+            - name: PCMA
+              media_type: audio
+              payload_type: 8
+              transport: RTP/AVP
+            - name: PCMU
+              media_type: audio
+              payload_type: 0
+              transport: RTP/AVP
+            - name: G729
+              media_type: audio
+              payload_type: 18
+              transport: RTP/AVP
+            - name: G722
+              media_type: audio
+              payload_type: 9
+              transport: RTP/AVP
+        media_manager:
+            state: enabled
+        codec_policy:
+            - name: Only_PCMU
+              allow_codecs: PCMU
+              add_codecs_on_egress: PCMU
+              order_codecs: PCMU
+              packetization_time: 30
+        realm_config:
+            - identifier: CallCentreRealm
+              description: Realm to Call Centre
+              network_interfaces: M00:0.4
+              codec_policy: Only_PCMU
+            - identifier: LocalSIPSystemRealm
+              description: Realm to SIP System
+              network_interfaces: M01:0.4
+              codec_policy: Only_PCMU
+        steering_pool:
+            - ip_address: 10.1.0.140
+              start_port: 10000
+              end_port: 29999
+              realm_id: CallCentreRealm
+              network_interface: M00:0.4
+            - ip_address: 10.2.0.140
+              start_port: 30000
+              end_port: 49999
+              realm_id: LocalSIPSystemRealm
+              network_interface: M01:0.4
+        sip_config:
+              state: enabled
+              home_realm_id: LocalSIPSystemRealm
+              registrar_port: 5060
+        sip_interface:
+            - realm_id: CallCentreRealm
+              state: enabled
+              description: SIP interface to Call Centre
+              add_sdp_invite: invite
+              add_sdp_profiles: PCMU
+              sip_ports:
+                  - address: 10.1.0.140
+                    port: 5061
+                    transport_protocol: TCP
+                    allow_anonymous: agents-only
+            - realm_id: LocalSIPSystemRealm
+              state: enabled
+              description: SIP interface to local SIP system
+              add_sdp_invite: invite
+              add_sdp_profiles: PCMU
+              sip_ports:
+                  - address: 10.2.0.140
+                    port: 5061
+                    transport_protocol: TCP
+                    allow_anonymous: agents-only
+        session_agent:
+          - hostname: call-centre.local
+            ip_address: 10.1.0.192
+            port: 5061
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP+TCP
+            realm_id: CallCentreRealm
+            description: Session agent to Call Centre
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: enabled
+          - hostname: sip-system.local
+            ip_address: 10.2.0.227
+            port: 5061
+            state: enabled
+            app_protocol: SIP
+            transport_method: UDP+TCP
+            realm_id: LocalSIPSystemRealm
+            description: Session agent to local SIP system
+            ping_method: OPTIONS
+            ping_interval: 30
+            refer_call_transfer: enabled
+        local_policy:
+            - source_realm: CallCentreRealm
+              from_address: "*"
+              to_address: "*" 
+              description: Local policy from Call Centre to Local SIP system
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: sip-system.local
+                  realm: LocalSIPSystemRealm
+                  action: none
+                  terminate_recursion: disabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+            - source_realm: LocalSIPSystemRealm
+              from_address: "*"
+              to_address: "*"
+              description: Local policy from Local SIP system to Call Centre
+              state: enabled
+              policy_priority: normal
+              policy_attributes:
+                - next_hop: call-centre.local
+                  realm: CallCentreRealm
+                  action: redirect
+                  terminate_recursion: disabled
+                  state: enabled
+                  app_protocol: SIP
+                  lookup: single
+        
